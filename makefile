@@ -9,7 +9,11 @@ default:
 	$(CC) $(CFLAGS) $(SRCS) -o notJustCats
 
 clean:
-	rm -f $(OBJS) $(EXEC)
+	rm -f $(OBJS) $(EXEC) project4.tgz
+	clear
 
-run:
-	./notJustCats
+run: default
+	./$(EXEC)
+
+tar:
+	tar -czvf project4.tgz README.md makefile $(SRCS)

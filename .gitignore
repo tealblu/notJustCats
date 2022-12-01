@@ -1,3 +1,7 @@
+# Convenience files
+SG_notjustcats.c
+SG_notjustcats.h
+
 # Prerequisites
 *.d
 
