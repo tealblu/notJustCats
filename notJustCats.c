@@ -1,4 +1,4 @@
-#define DEBUG 1
+// #define DEBUG 1
 
 /**
  * @file notJustCats.c
@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     #endif
 
     // Allocate memory for directory
-    dir = (directory *) malloc(sizeof(struct directory));
+    dir = (directory *) malloc(sizeof(directory));
 
     // Open image file
     fData = openFile(imgFile);
@@ -41,4 +41,12 @@ int main(int argc, char *argv[]) {
 
     // Parse file system
     parseFileSystem(fData);
+
+    // Output
+    printDirectory(dir->head);
+
+    // Write output to outDir
+    writeOutput(outDir);
+
+    return(EXIT_SUCCESS);
 }

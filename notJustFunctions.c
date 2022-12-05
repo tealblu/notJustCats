@@ -20,10 +20,6 @@ uint8_t *openFile(char *fileName) {
         printf("Error: File not found\n");
         exit(EXIT_FAILURE);
     }
-    if(fp == -1) {
-        printf("Error: File pointer is null\n");
-        exit(EXIT_FAILURE);
-    }
 
 
     // Map memory
@@ -77,7 +73,7 @@ void parseFileSystem(uint8_t *memory) {
             strcat(entry->filePath, entry->ext);
 
             // Get data
-            entry->data = makeData(entry, dataSec);
+            makeData(entry, dataSec);
         }
 
         // Iterate
@@ -144,11 +140,12 @@ dirEntry *makeDirectory(uint8_t *fData) {
     // If it's not a directory, add to dir list
     else if (newEntry->directory == 0) {
         // Add to directory list
-        if(dir == NULL) {
-            dir = newEntry;
+        if(dir->head == NULL) {
+            dir->head = dir->tail = newEntry;
+            newEntry->next = NULL;
         }
         else {
-            // check if file already exists
+            /*// check if file already exists
             dirEntry *temp = dir;
             while(temp->next != NULL) {
                 if(strcmp(temp->name, newEntry->name) == 0) {
@@ -159,9 +156,16 @@ dirEntry *makeDirectory(uint8_t *fData) {
             }
 
             // Add to end of list
-            temp->next = newEntry;
+            temp->next = newEntry; */
+
+            dir->tail->next = newEntry;
+            dir->tail = newEntry;
+            newEntry->next = NULL;
         }
     }
+
+    // Return entry
+    return newEntry;
 }
 
 void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
@@ -183,7 +187,7 @@ void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
             uint8_t *newSec = fData + ((int) dataSec * SEC_SIZE); // <- the typecast may need to be removed later
 
             // handle directory
-            handleDirectory(newEntry, dataSec);
+            handleDirectory(newEntry, newSec);
         } else {
             // handle file
             strcat(newEntry->filePath, ".");
@@ -193,7 +197,7 @@ void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
             uint8_t *dataSec = DATA_SEC_OFFSET + newEntry->firstLCluster[0] - 2;
             uint8_t *newSec = fData + ((int) dataSec * SEC_SIZE); // <- the typecast may need to be removed later
 
-            newEntry->data = makeData(newEntry, dataSec);
+            makeData(newEntry, newSec);
         }
 
         // Iterate
@@ -201,7 +205,7 @@ void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
     }
 }
 
-dirEntry *makeData(dirEntry *entry, uint8_t *fData) {
+void makeData(dirEntry *entry, uint8_t *fData) {
     // init
     uint8_t *dataSec;
     int sec;
@@ -220,7 +224,7 @@ dirEntry *makeData(dirEntry *entry, uint8_t *fData) {
         currentSec->next = NULL;
         entry->data = currentSec;
 
-        return currentSec;
+        return;
     } else {
         // Multiple sectors exist
         // Search for next cluster
@@ -231,17 +235,127 @@ dirEntry *makeData(dirEntry *entry, uint8_t *fData) {
         entry->list->head = entry->list->tail = NULL;
         entry->list->num = 0;
 
-        
+        entry->data = currentSec;
+        addData(entry, currentSec);
+
+        while(fatEntry != 0 && fatEntry <= 0xff8) {
+            // Get next sector
+            dataEntry *nextSec = (dataEntry *) malloc(sizeof(dataEntry));
+            nextSec->data = (char *) malloc(SEC_SIZE);
+
+            // Make entry
+            sec = (DATA_SEC_OFFSET + fatEntry - 2);
+            dataSec = fData + (sec * SEC_SIZE);
+            memcpy(nextSec->data, dataSec, SEC_SIZE);
+
+            // Add to list
+            addData(entry, nextSec);
+
+            // Get next FAT entry
+            fatEntry = cluster2FAT(fatEntry);
+        }
     }
 }
 
 uint32_t cluster2FAT(uint16_t cluster) {
     // Get FAT entry
-    uint16_t value;
     uint32_t offset = 0x200 + (3 * cluster / 2);
 
-    // Check if cluster is odd or even
-    (cluster % 2 == 0) ? value = (0x0f & *(fData + offset + 1)) << 8 | *(fData + offset) : value = (*(fData + offset + 2) << 4) | (0xf0 & *(fData + offset + 1)) >> 4;
+    // If cluster is even
+    if(cluster % 2 == 0) {
+        return (0x0f & *(fData + offset + 1)) << 8 | *(fData + offset);
+    }
 
-    return value;
+    // Otherwise, cluster is odd
+    return (*(fData + offset + 2) << 4) | (0xf0 & *(fData + offset + 1)) >> 4;
+}
+
+void addData(dirEntry *entry, dataEntry *data) {
+    // Get dataList
+    dataList *list = entry->list;
+
+    // Check if list is empty
+    if(list->head == NULL) {
+        list->head = list->tail = data;
+    } else {
+        list->tail->next = data;
+        list->tail = data;
+        data->next = NULL;
+    }
+
+    list->num++;
+}
+
+void printDirectory(dirEntry *entry) {
+    // While there are more data entries
+    while(entry) {
+        // Ensure file is not deleted
+        if(entry->name[0] != '_') {
+            if((strcmp(entry->name, ".") == 0) && (strcmp(entry->name, "..") == 0)) {
+                printf("FILE\tNORMAL\t%s\t%d\n", entry->filePath, entry->size);
+            }
+        } else {
+            printf("FILE\tDELETED\t%s\t%d\n", entry->filePath, entry->size);
+        }
+
+        // Iterate
+        entry = entry->next;
+    }
+}
+
+void writeOutput(char *outputDir) {
+    // Init variables
+    dirEntry *entry = dir->head;
+    char *outPath = (char *) malloc(sizeof(char) * 100);
+    FILE *outfile;
+    int i = 0;
+    size_t size;
+
+    // While there are more entries
+    while(entry) {
+        size = 0;
+
+        // Get path to output directory
+        sprintf(outPath, "%s/%s%d.%s", outputDir, "file", i++, entry->ext);
+
+        // Open file
+        outfile = fopen(outPath, "wb");
+        if(outfile == NULL) {
+            printf("Error: Could not open file %s\n", outPath);
+            exit(EXIT_FAILURE);
+        }
+
+        // Check number of data sectors
+        if(entry->list == NULL) {
+            // Only one data sector exists
+            if(size < entry->size) {
+                for(int j = 0; j < entry->size; j++) {
+                    fputc(entry->data->data[j], outfile);
+                    size++;
+                }
+            }
+        } else {
+            // Multiple data sectors exist
+            dataEntry *current = entry->list->head;
+
+            // While there are more data sectors
+            while(current) {
+                for(int k = 0; k < SEC_SIZE; k++) {
+                    if(size < entry->size) {
+                        fputc(current->data[k], outfile);
+                        size++;
+                    }
+                }
+
+                // Iterate
+                current = current->next;
+            }
+        }
+
+        // Iterate
+        entry = entry->next;
+    }
+
+    // Close file
+    fclose(outfile);
 }

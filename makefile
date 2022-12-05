@@ -6,7 +6,7 @@ CFLAGS = -Wall -g
 LDFLAGS = -lm
 
 default:
-	$(CC) $(CFLAGS) $(SRCS) -o notJustCats
+	$(CC) $(CFLAGS) $(SRCS) -o $(EXEC) $(LDFLAGS)
 
 clean:
 	rm -f $(OBJS) $(EXEC) project4.tgz
@@ -16,4 +16,4 @@ run: default
 	./$(EXEC)
 
 tar:
-	tar -czvf project4.tgz README.md makefile $(SRCS)
+	tar -czvf project4.tgz README.md makefile $(SRCS) $(EXEC)

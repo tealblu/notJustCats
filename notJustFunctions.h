@@ -68,12 +68,6 @@ typedef struct dataList {       /* file data list */
     struct dataEntry *tail;     /* pointer to tail of data list */
 } dataList;
 
-typedef struct dataDirectory { /* data directory */
-    int num;                   /* number of data directories */
-    struct dataEntry *head;    /* pointer to head of data directory */
-    struct dataEntry *tail;    /* pointer to tail of data directory */
-} dataDirectory;
-
 // Global Variables
 struct bootSector *bootSector;
 struct directory *dir;
@@ -124,6 +118,33 @@ void handleDirectory(dirEntry *dirEntry, uint8_t *fData);
  * @param fData Pointer to mapped memory
  * @param dirEntry Pointer to directory entry
  */
-dirEntry *makeData(dirEntry *dirEntry, uint8_t *fData);
+void makeData(dirEntry *dirEntry, uint8_t *fData);
 
+/**
+ * @brief Gets FAT entry
+ * 
+ * @param cluster 
+ * @return uint32_t 
+ */
 uint32_t cluster2FAT(uint16_t cluster);
+
+/**
+ * @brief Adds data to the specified list
+ * 
+ * @param dirEntry 
+ * @param data 
+ */
+void addData(dirEntry *dirEntry, dataEntry *data);
+
+/**
+ * @brief Prints the directory
+ * 
+ * @param dir Pointer to directory
+ */
+void printDirectory(dirEntry *dir);
+
+/**
+ * @brief Write file data to output directory specified
+ * 
+ */
+void writeOutput(char *outputDir);
