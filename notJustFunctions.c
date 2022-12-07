@@ -100,7 +100,7 @@ dirEntry *makeDirectory(uint8_t *fData) {
     newEntry->fNum = 0;
     newEntry->directory = 0;
 
-    //max length for filePath will be 30 chars
+    // max length 30 chars
     newEntry->filePath = (char *) malloc(MAX_FILEPATH_SIZE);
     newEntry->data = (dataEntry *) malloc(sizeof(dataEntry));
     newEntry->data->data = (char *) malloc(SEC_SIZE);
@@ -108,10 +108,10 @@ dirEntry *makeDirectory(uint8_t *fData) {
 
     // Memory is now allocated, set up directory entry
     uint8_t *temp = fData;
-    char *buf = malloc(32);
-    memcpy(buf, temp, 32);
+    char *buf = malloc(DIR_SIZE);
+    memcpy(buf, temp, DIR_SIZE);
 
-    // Copy from buffer to entry struct
+    // Copy from buffer to struct
     memcpy(newEntry->name, buf, 8);
     memcpy(newEntry->ext, buf + 8, 3);
     memcpy(newEntry->attr, buf + 11, 1);
@@ -119,15 +119,15 @@ dirEntry *makeDirectory(uint8_t *fData) {
     memcpy(&newEntry->size, buf + 28, 4);
 
     // Remove trailing spaces from name
-    for(int i = 0; i < 8; i++) {
-        if(newEntry->name[i] == ' ') {
+    for(int i = 8; i > 0; i--){
+        if(newEntry->name[i] == ' '){
             newEntry->name[i] = '\0';
         }
     }
 
-    // Remove trailing spaces from extension
-    for(int i = 0; i < 3; i++) {
-        if(newEntry->ext[i] == ' ') {
+    // remove padding
+    for(int i = 3; i > 0; i--){
+        if(newEntry->ext[i] == ' '){
             newEntry->ext[i] = '\0';
         }
     }
@@ -176,7 +176,7 @@ void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
         if(newEntry->directory == 1) {
             // Get first data sector
             uint8_t dataSec = (DATA_SEC_OFFSET + newEntry->firstLCluster - 2);
-            uint8_t *newSec = fData + ((int) dataSec * SEC_SIZE); // <- the typecast may need to be removed later
+            uint8_t *newSec = fData + (dataSec * SEC_SIZE); // <- the typecast may need to be removed later
 
             // handle directory
             handleDirectory(newEntry, newSec);
@@ -187,7 +187,7 @@ void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
 
             // Get data sector
             uint8_t dataSec = DATA_SEC_OFFSET + newEntry->firstLCluster - 2;
-            uint8_t *newSec = fData + ((int) dataSec * SEC_SIZE); // <- the typecast may need to be removed later
+            uint8_t *newSec = fData + (dataSec * SEC_SIZE); // <- the typecast may need to be removed later
 
             makeData(newEntry, newSec);
         }
@@ -213,7 +213,6 @@ void makeData(dirEntry *entry, uint8_t *fData) {
     if(fatEntry >= 0xff8 || fatEntry == 0) {
         // Copy data
         memcpy(currentSec->data, fData, SEC_SIZE);
-        currentSec->next = NULL;
         entry->data = currentSec;
     } else {
         // Multiple sectors exist
@@ -253,7 +252,7 @@ uint32_t cluster2FAT(uint16_t cluster) {
 
     // If cluster is even
     if(cluster % 2 == 0) {
-        return (0x0f & *(fData + offset + 1)) << 8 | *(fData + offset);
+        return ((0x0f & *(fData + offset + 1)) << 8) | *(fData + offset);
     }
 
     // Otherwise, cluster is odd
@@ -297,7 +296,7 @@ void printDirectory(dirEntry *entry) {
 void writeOutput(char *outputDir) {
     // Init variables
     dirEntry *entry = dir->head;
-    char *outPath = (char *) malloc(sizeof(char) * 100);
+    char *outPath = (char *) malloc(MAX_FILEPATH_SIZE);
     FILE *outfile;
     int i = 0;
     size_t size;
@@ -321,7 +320,7 @@ void writeOutput(char *outputDir) {
             // Only one data sector exists
             for(int j = 0; j < entry->size; j++) {
                 if(size < entry->size) {
-                    fputc(entry->data->data[j], outfile);
+                    fprintf(outfile, "%c", entry->data->data[j]);
                     size++;
                 }
             }
@@ -331,9 +330,9 @@ void writeOutput(char *outputDir) {
 
             // While there are more data sectors
             while(current) {
-                for(int k = 0; k < SEC_SIZE; k++) {
+                for(int j = 0; j < SEC_SIZE; j++) {
                     if(size < entry->size) {
-                        fputc(current->data[k], outfile);
+                        fprintf(outfile, "%c", current->data[j]);
                         size++;
                     }
                 }

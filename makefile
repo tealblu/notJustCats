@@ -11,10 +11,11 @@ default:
 clean:
 	rm -f $(OBJS) $(EXEC) project4.tgz
 	rm -f out/*
+	rm -f a.out
 	clear
 
 run: default
-	./$(EXEC)
+	./$(EXEC) in/simple.img out
 
 tar:
 	tar -czvf project4.tgz README.md makefile $(SRCS)
