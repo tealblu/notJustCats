@@ -42,6 +42,9 @@ int main(int argc, char *argv[]) {
     // Parse file system
     parseFileSystem(fData);
 
+    // Close image file
+    closeFile(fData);
+
     // Output
     printDirectory(dir->head);
 

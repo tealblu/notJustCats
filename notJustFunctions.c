@@ -63,6 +63,13 @@ void parseFileSystem(uint8_t *memory) {
         // Get first data sector
         uint8_t *dataSec = memory + ((DATA_SEC_OFFSET + entry->firstLCluster[0] - 2) * SEC_SIZE);
 
+        #ifdef DEBUG
+            printf("First data sector: %d\n", entry->firstLCluster[0]);
+            printf("Data sector offset: %d\n", (DATA_SEC_OFFSET + entry->firstLCluster[0] - 2) * SEC_SIZE);
+            printf("Data sector: %d\n", (DATA_SEC_OFFSET + entry->firstLCluster[0] - 2));
+            printf("Data sector address: %p\n", dataSec);
+        #endif
+
         // Detect if entry is a directory
         if(entry->directory == 1) {
             // handle directory
@@ -183,7 +190,7 @@ void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
         // Check if entry is a directory
         if(newEntry->directory == 1) {
             // Get first data sector
-            uint8_t *dataSec = DATA_SEC_OFFSET + newEntry->firstLCluster[0] - 2;
+            uint8_t *dataSec = (uint8_t *) (DATA_SEC_OFFSET + newEntry->firstLCluster[0] - 2);
             uint8_t *newSec = fData + ((int) dataSec * SEC_SIZE); // <- the typecast may need to be removed later
 
             // handle directory
