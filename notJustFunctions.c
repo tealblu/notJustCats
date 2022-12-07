@@ -9,6 +9,9 @@
  * 
  */
 
+// Debug mode
+//#define DEBUG 1
+
 // Includes
 #include "notJustFunctions.h"
 
@@ -61,12 +64,13 @@ void parseFileSystem(uint8_t *memory) {
         strcat(entry->filePath, entry->name);
 
         // Get first data sector
-        uint8_t *dataSec = memory + ((DATA_SEC_OFFSET + entry->firstLCluster[0] - 2) * SEC_SIZE);
+        int sec = (uint32_t) (DATA_SEC_OFFSET + entry->firstLCluster - 2);
+        uint8_t *dataSec = memory + (sec * SEC_SIZE);
 
         #ifdef DEBUG
-            printf("First data sector: %d\n", entry->firstLCluster[0]);
-            printf("Data sector offset: %d\n", (DATA_SEC_OFFSET + entry->firstLCluster[0] - 2) * SEC_SIZE);
-            printf("Data sector: %d\n", (DATA_SEC_OFFSET + entry->firstLCluster[0] - 2));
+            printf("First data sector: %d\n", entry->firstLCluster);
+            printf("Data sector offset: %d\n", (DATA_SEC_OFFSET + entry->firstLCluster - 2) * SEC_SIZE);
+            printf("Data sector: %d\n", (DATA_SEC_OFFSET + entry->firstLCluster - 2));
             printf("Data sector address: %p\n", dataSec);
         #endif
 
@@ -190,7 +194,7 @@ void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
         // Check if entry is a directory
         if(newEntry->directory == 1) {
             // Get first data sector
-            uint8_t *dataSec = (uint8_t *) (DATA_SEC_OFFSET + newEntry->firstLCluster[0] - 2);
+            uint8_t *dataSec = (uint8_t *) (DATA_SEC_OFFSET + newEntry->firstLCluster - 2);
             uint8_t *newSec = fData + ((int) dataSec * SEC_SIZE); // <- the typecast may need to be removed later
 
             // handle directory
@@ -201,7 +205,7 @@ void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
             strcat(newEntry->filePath, newEntry->ext);
 
             // Get data sector
-            uint8_t *dataSec = DATA_SEC_OFFSET + newEntry->firstLCluster[0] - 2;
+            uint8_t *dataSec = DATA_SEC_OFFSET + newEntry->firstLCluster - 2;
             uint8_t *newSec = fData + ((int) dataSec * SEC_SIZE); // <- the typecast may need to be removed later
 
             makeData(newEntry, newSec);
@@ -222,7 +226,7 @@ void makeData(dirEntry *entry, uint8_t *fData) {
     currentSec->data = (char *) malloc(SEC_SIZE);
 
     // Get FAT entry
-    uint32_t fatEntry = cluster2FAT(entry->firstLCluster[0]);
+    uint32_t fatEntry = cluster2FAT(entry->firstLCluster);
 
     // Check if this is the only data sector
     if(fatEntry >= 0xff8 || fatEntry == 0) {
@@ -361,8 +365,8 @@ void writeOutput(char *outputDir) {
 
         // Iterate
         entry = entry->next;
-    }
 
-    // Close file
-    fclose(outfile);
+        // Close file
+        fclose(outfile);
+    }
 }
