@@ -42,7 +42,7 @@ typedef struct dirEntry { /* holds directory entry info */
     char *ext;                  /* extension of file */
     uint8_t *attr;              /* attribute of file */
     uint16_t size;              /* size of file */
-    uint32_t *firstLCluster;    /* first logical cluster of file */
+    uint32_t firstLCluster;    /* first logical cluster of file */
     int fNum;                   /* file number */
     int directory;              /* directory number */
     char *filePath;             /* file path */

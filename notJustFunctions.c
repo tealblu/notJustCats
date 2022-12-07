@@ -34,17 +34,17 @@ void getBootSector(uint8_t *memory) {
     // Allocate memory for boot sector
     bootSector = (struct bootSector *) malloc(sizeof(struct bootSector));
 
-    // Get number of FATs
-    bootSector->fCount = memory[16];
+    // Get number of FATs 
+    bootSector->fCount = (size_t) (* (memory + 16) & 0x00FF);
 
     // Get number of root directory entries
-    bootSector->rdCount = memory[17];
+    bootSector->rdCount = (size_t) ((*(memory + 18) << 8) & 0x00FF) | (*(memory + 17) & 0xFF);
 
     // Get number of sectors
-    bootSector->sCount = memory[19];
+    bootSector->sCount = (size_t)((*(memory + 20) << 8) & 0x00FF) | (*(memory + 19) & 0xFF);
 
     // Get number of sectors in each FAT
-    bootSector->secPerFat = memory[22];
+    bootSector->secPerFat = (size_t)((*(memory + 23) << 8) & 0x00FF) | (*(memory + 22) & 0xFF);
 
     /*    boot->fatCount = (size_t)(*(file + 16) & 0x00FF); // byte 16
     boot->rootDirectoryCount = (size_t) ((*(file + 18) << 8) & 0x00FF) | (*(file + 17) & 0xFF); // bytes 18 and 17
@@ -60,19 +60,14 @@ void parseFileSystem(uint8_t *memory) {
     while(*rootDir != 0x00) {
         // Get entry in root directory
         dirEntry *entry = makeDirectory(rootDir);
+
+        // Get file path
         entry->filePath[0] = '/';
         strcat(entry->filePath, entry->name);
 
         // Get first data sector
-        int sec = (uint32_t) (DATA_SEC_OFFSET + entry->firstLCluster - 2);
+        int sec = (DATA_SEC_OFFSET + entry->firstLCluster - 2);
         uint8_t *dataSec = memory + (sec * SEC_SIZE);
-
-        #ifdef DEBUG
-            printf("First data sector: %d\n", entry->firstLCluster);
-            printf("Data sector offset: %d\n", (DATA_SEC_OFFSET + entry->firstLCluster - 2) * SEC_SIZE);
-            printf("Data sector: %d\n", (DATA_SEC_OFFSET + entry->firstLCluster - 2));
-            printf("Data sector address: %p\n", dataSec);
-        #endif
 
         // Detect if entry is a directory
         if(entry->directory == 1) {
@@ -113,7 +108,6 @@ dirEntry *makeDirectory(uint8_t *fData) {
 
     // Memory is now allocated, set up directory entry
     uint8_t *temp = fData;
-
     char *buf = malloc(32);
     memcpy(buf, temp, 32);
 
@@ -149,26 +143,13 @@ dirEntry *makeDirectory(uint8_t *fData) {
     }
 
     // If it's not a directory, add to dir list
-    else if (newEntry->directory == 0) {
+    else if (newEntry->directory == 0 && strcmp(newEntry->name, ".") != 0 && strcmp(newEntry->name, "..") != 0) {
         // Add to directory list
         if(dir->head == NULL) {
             dir->head = dir->tail = newEntry;
             newEntry->next = NULL;
         }
         else {
-            /*// check if file already exists
-            dirEntry *temp = dir;
-            while(temp->next != NULL) {
-                if(strcmp(temp->name, newEntry->name) == 0) {
-                    printf("Error: File already exists\n");
-                    exit(EXIT_FAILURE);
-                }
-                temp = temp->next;
-            }
-
-            // Add to end of list
-            temp->next = newEntry; */
-
             dir->tail->next = newEntry;
             dir->tail = newEntry;
             newEntry->next = NULL;
@@ -194,7 +175,7 @@ void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
         // Check if entry is a directory
         if(newEntry->directory == 1) {
             // Get first data sector
-            uint8_t *dataSec = (uint8_t *) (DATA_SEC_OFFSET + newEntry->firstLCluster - 2);
+            uint8_t dataSec = (DATA_SEC_OFFSET + newEntry->firstLCluster - 2);
             uint8_t *newSec = fData + ((int) dataSec * SEC_SIZE); // <- the typecast may need to be removed later
 
             // handle directory
@@ -205,7 +186,7 @@ void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
             strcat(newEntry->filePath, newEntry->ext);
 
             // Get data sector
-            uint8_t *dataSec = DATA_SEC_OFFSET + newEntry->firstLCluster - 2;
+            uint8_t dataSec = DATA_SEC_OFFSET + newEntry->firstLCluster - 2;
             uint8_t *newSec = fData + ((int) dataSec * SEC_SIZE); // <- the typecast may need to be removed later
 
             makeData(newEntry, newSec);
@@ -234,8 +215,6 @@ void makeData(dirEntry *entry, uint8_t *fData) {
         memcpy(currentSec->data, fData, SEC_SIZE);
         currentSec->next = NULL;
         entry->data = currentSec;
-
-        return;
     } else {
         // Multiple sectors exist
         // Search for next cluster
@@ -288,6 +267,7 @@ void addData(dirEntry *entry, dataEntry *data) {
     // Check if list is empty
     if(list->head == NULL) {
         list->head = list->tail = data;
+        data->next = NULL;
     } else {
         list->tail->next = data;
         list->tail = data;
@@ -302,7 +282,7 @@ void printDirectory(dirEntry *entry) {
     while(entry) {
         // Ensure file is not deleted
         if(entry->name[0] != '_') {
-            if((strcmp(entry->name, ".") == 0) && (strcmp(entry->name, "..") == 0)) {
+            if(strcmp(entry->name, ".") != 0 && strcmp(entry->name, "..") != 0) {
                 printf("FILE\tNORMAL\t%s\t%d\n", entry->filePath, entry->size);
             }
         } else {
@@ -339,8 +319,8 @@ void writeOutput(char *outputDir) {
         // Check number of data sectors
         if(entry->list == NULL) {
             // Only one data sector exists
-            if(size < entry->size) {
-                for(int j = 0; j < entry->size; j++) {
+            for(int j = 0; j < entry->size; j++) {
+                if(size < entry->size) {
                     fputc(entry->data->data[j], outfile);
                     size++;
                 }
@@ -365,8 +345,8 @@ void writeOutput(char *outputDir) {
 
         // Iterate
         entry = entry->next;
-
-        // Close file
-        fclose(outfile);
     }
+
+    // Close file
+    fclose(outfile);
 }
