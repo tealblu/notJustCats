@@ -16,23 +16,33 @@
 
 int main(int argc, char *argv[]){
 
+    // check for correct number of arguments
     if(argc != 3){
-        printf("Wrong number of arguments!\nUsage: ./notjustcats <image filename> <output directory>");
-        exit(0);
+        printf("Usage: ./notjustcats <image filename> <output directory>");
+        exit(EXIT_FAILURE);
     }
 
-    char *in = argv[1];
-    char *out = argv[2];
+    // set up variables
+    char *inFile = argv[1];
+    char *outDir = argv[2];
     
+    // allocate memory for file list
     fList = (fileList *) malloc(sizeof(fileList));
     
-    fileData = extFileInfo(in);
+    // extract file data
+    fileData = extFileInfo(inFile);
+
+    // get boot sector
     getBootSec(fileData);
     
+    // find the deleted files
     findFiles(fileData);
 
+    // print the files found
     printFiles();
-    recoverData(out);
+
+    // write recovered files to output directory
+    recoverData(outDir);
     
-    return 0;
+    return(EXIT_SUCCESS);
 }
