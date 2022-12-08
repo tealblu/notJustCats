@@ -14,39 +14,25 @@
 // Includes
 #include "notJustFunctions.h"
 
-int main(int argc, char *argv[]) {
-    #ifdef DEBUG
-        printf("RUNNING notJustCats.c:main() IN DEBUG MODE\n");
-    #endif
-    
-    // Validate command line arguments
-    if(argc != 3) {
-        printf("Usage: ./notJustCats <image file name> <output directory name>\n");
-        exit(EXIT_FAILURE);
+int main(int argc, char *argv[]){
+
+    if(argc != 3){
+        printf("Wrong number of arguments!\nUsage: ./notjustcats <image filename> <output directory>");
+        exit(0);
     }
-    char *imgFile = argv[1];
-    char *outDir = argv[2];
 
-    #ifdef DEBUG
-    printf("Image file: %s\n", imgFile);
-    printf("Output directory: %s\n", outDir);
-    #endif
+    char *in = argv[1];
+    char *out = argv[2];
+    
+    directoryList = (fileList *) malloc(sizeof(fileList));
+    
+    fileData = extFileInfo(in);
+    getBootSec(fileData);
+    
+    findFiles(fileData);
 
-    // Allocate memory for directory
-    dir = (directory *) malloc(sizeof(directory));
-
-    // Open image file
-    fData = openFile(imgFile);
-    getBootSector(fData);
-
-    // Parse file system
-    parseFileSystem(fData);
-
-    // Output
-    printDirectory(dir->head);
-
-    // Write output to outDir
-    writeOutput(outDir);
-
-    return(EXIT_SUCCESS);
+    printFiles();
+    recoverData(out);
+    
+    return 0;
 }
