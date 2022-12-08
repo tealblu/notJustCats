@@ -12,81 +12,72 @@
 #include "notJustFunctions.h"
 
 /**
- * mmap the disk image
+ * @brief Extracts file info
  * 
+ * @param file The file to get info from
+ * @return uint8_t* Pointer to data
  */
-
 uint8_t *extFileInfo(char *file){
-    int fd = open(file, O_RDONLY);
-    if(fd == -1){
-        printf("fp is null in boot sector\n");
-        exit(0);
+    FILE *fp = fopen(file, "r");
+    if(!fp) {
+        printf("fp is null!\n");
+        exit(EXIT_FAILURE);
     }
 
-    uint8_t *mem = mmap(NULL, (SEC_SIZE * 2879), PROT_READ, MAP_PRIVATE, fd, 0);
-
-    return mem;
+    return (uint8_t *) mmap(NULL, (SEC_SIZE * 2879), PROT_READ, MAP_PRIVATE, fileno(fp), 0);
 }
 
 /**
- * get valuable information from the boot sector
- *
+ * @brief Build the Boot Sec object
+ * 
+ * @param file The file to get info from
  */
-
 void getBootSec(uint8_t *file){
-
     boot = malloc(sizeof(struct bootSec));
     
-    boot->numFat = (size_t)(*(file + 16) & 0x00FF); // byte 16
-    boot->rdCount = (size_t) ((*(file + 18) << 8) & 0x00FF) | (*(file + 17) & 0xFF); // bytes 18 and 17
-    boot->numSec = (size_t)((*(file + 20) << 8) & 0x00FF) | (*(file + 19) & 0xFF); // bytes 20 and 19
-    boot->secPerFat = (size_t)((*(file + 23) << 8) & 0x00FF) | (*(file + 22) & 0xFF); // bytes 23 and 22
-
-    return;
+    boot->numFat = (size_t) (*(file + 16) & 0x00FF);
+    boot->rdCount = (size_t) ((*(file + 18) << 8) & 0x00FF) | (*(file + 17) & 0xFF);
+    boot->numSec = (size_t) ((*(file + 20) << 8) & 0x00FF) | (*(file + 19) & 0xFF);
+    boot->secPerFat = (size_t) ((*(file + 23) << 8) & 0x00FF) | (*(file + 22) & 0xFF);
 }
 
 /**
- * iterates through the root directory until we don't have any more entries.
+ * @brief Iteratively find the deleted files
  * 
- * each root directory entry is 32 bytes long and represents either a subdirectory or a file
- * 
+ * @param file The file to get info from
  */
-
 void findFiles(uint8_t *file){
 
-    //compute root directory 
+    // get the root directory
     uint8_t *rootDirectory = file + ROOT_OFFSET;
 
-    //we're gonna go until we run out of rootDirectory entries
+    // loop until we reach the end of the root directory
     while(*rootDirectory != 0x00){
-        
-        //entry in the root directory
         fileNode *newDirectory = makeDir(rootDirectory);
         newDirectory->filePath[0] = '/';
         strcat(newDirectory->filePath, newDirectory->fileName);
         
-        //the initial data sector
+        // get first data sector
         int sector = (DATA_OFFSET + newDirectory->firstCluster - 2);
         uint8_t *dataSection = file + (sector * SEC_SIZE);
 
-        //entry is a directory
+        // check if entry is directory
         if(newDirectory->dir == 1){
+            // entry is a directory
             recursiveDir(newDirectory, dataSection); 
         }
-        //entry is a file
         else {
+            // entry is a file
             strcat(newDirectory->filePath, ".");
             strcat(newDirectory->filePath, newDirectory->ext);
 
+            // find the data sectors
             findSecs(newDirectory, dataSection);
         }
         
-        //next root directory entry
-        rootDirectory = rootDirectory + 32;
-        
+        // iterate
+        rootDirectory += DIR_SIZE;
     }
-
-    return;
 }
 
 /**
