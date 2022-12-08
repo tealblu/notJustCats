@@ -39,30 +39,30 @@ void recursiveDir(fileNode *entry, uint8_t *subEntry){
     // loop until we reach the end of the sub directory
     while(*firstEntry != 0x00){
         // make a new entry
-        fileNode *entry = makeDir(firstEntry);
+        fileNode *newEntry = makeDir(firstEntry);
 
         // add the file name
-        strcat(entry->filePath, entry->filePath);
-        strcat(entry->filePath, "/");
-        strcat(entry->filePath, entry->fileName);
+        strcat(newEntry->filePath, entry->filePath);
+        strcat(newEntry->filePath, "/");
+        strcat(newEntry->filePath, newEntry->fileName);
         
         // another directory in the sub directory
-        if(entry->dir == 1){
+        if(newEntry->dir == 1){
             // get the new data sec  
-            int sec = (DATA_OFFSET + entry->firstCluster - 2);
+            int sec = (DATA_OFFSET + newEntry->firstCluster - 2);
             uint8_t *newSec = fileData + (sec * SEC_SIZE);
 
             // recursively call this function
-            recursiveDir(entry, newSec);
+            recursiveDir(newEntry, newSec);
         } else {
             // add the extension
-            strcat(entry->filePath, ".");
-            strcat(entry->filePath, entry->ext);
+            strcat(newEntry->filePath, ".");
+            strcat(newEntry->filePath, newEntry->ext);
 
             // get the data sec
-            int sec = (DATA_OFFSET + entry->firstCluster - 2);
+            int sec = (DATA_OFFSET + newEntry->firstCluster - 2);
             uint8_t *newSec = fileData + (sec * SEC_SIZE);
-            findSecs(entry, newSec);
+            findSecs(newEntry, newSec);
         }
 
         // iterate

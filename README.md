@@ -14,4 +14,6 @@ DESIGN
     any files that have been deleted.
 
 KNOWN PROBLEMS
-    The tool currently has issues recovering large files such as images and long text documents. Currently trying to find the source of the issue.
+    1. The tool does not handle subdirectories that are more than 1 level deep.
+    2. My partner completed the project on his own without telling me, so I had to do the whole thing myself in less time than originally planned. I was waiting on him to be ready to start the project,
+        but about a week in he told me he already had gotten it done. I was under the impression that we were going to meet sometime and get started together, but he never told me he was done.
