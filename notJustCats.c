@@ -39,7 +39,20 @@ int main(int argc, char *argv[]){
     findFiles(fileData);
 
     // print the files found
-    printFiles();
+    fileNode *entry = fList->head;
+
+    // go through the directory list and print info about the file
+    while(entry){
+        if(entry->fileName[0] != '_'){
+            if(strcmp(entry->fileName, ".") != 0 && strcmp(entry->fileName, "..") != 0) {
+                printf("FILE\tNORMAL\t%s\t%d\n", entry->filePath, entry->size);
+            }
+        }
+        else {
+            printf("FILE\tDELETED\t%s\t%d\n", entry->filePath, entry->size); 
+        }
+        entry = entry->next;
+    }
 
     // write recovered files to output directory
     recoverData(outDir);

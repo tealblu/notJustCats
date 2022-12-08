@@ -21,6 +21,7 @@
 #define ROOT_OFFSET 0x2600
 #define FAT_OFFSET 0x203
 #define DATA_OFFSET 33
+#define DIR_OFFSET 64
 
 // sizes
 #define FILEPATH_SIZE 30
@@ -87,13 +88,10 @@ void recoverData(char *file);
 
 // file functions
 uint8_t *extFileInfo(char *file);
-void printFiles();
 
 // allocation functions
 fileNode *makeDir(uint8_t *directoryInfo);
-fileNode *allocDirectory(); // <- move into makeDir
 
 // list functions
 void addToFileList(fileNode *newEntry);
 void addToFileDataList(fileDataNode *newEntry, fileNode *curDirectory);
-int checkEntry(char *fileName); // <- move into cluster2Fat

@@ -15,7 +15,7 @@ clean:
 	clear
 
 run: default
-	./$(EXEC) in/simple.img out
+	./$(EXEC) in/random.img out
 
 tar:
 	tar -czvf project4.tgz README.md makefile $(SRCS)
