@@ -32,7 +32,7 @@ uint8_t *openFile(char *fileName) {
 
 void getBootSector(uint8_t *memory) {
     // Allocate memory for boot sector
-    bootSector = (struct bootSector *) malloc(sizeof(struct bootSector));
+    bootSector = malloc(sizeof(struct bootSector));
 
     // Get number of FATs 
     bootSector->fCount = (size_t) (* (memory + 16) & 0x00FF);
@@ -99,8 +99,6 @@ dirEntry *makeDirectory(uint8_t *fData) {
     newEntry->size = 0;
     newEntry->fNum = 0;
     newEntry->directory = 0;
-
-    // max length 30 chars
     newEntry->filePath = (char *) malloc(MAX_FILEPATH_SIZE);
     newEntry->data = (dataEntry *) malloc(sizeof(dataEntry));
     newEntry->data->data = (char *) malloc(SEC_SIZE);
@@ -111,7 +109,7 @@ dirEntry *makeDirectory(uint8_t *fData) {
     char *buf = malloc(DIR_SIZE);
     memcpy(buf, temp, DIR_SIZE);
 
-    // Copy from buffer to struct
+    // Copy from buffer -> struct
     memcpy(newEntry->name, buf, 8);
     memcpy(newEntry->ext, buf + 8, 3);
     memcpy(newEntry->attr, buf + 11, 1);
@@ -125,14 +123,14 @@ dirEntry *makeDirectory(uint8_t *fData) {
         }
     }
 
-    // remove padding
+    // Remove the padding
     for(int i = 3; i > 0; i--){
         if(newEntry->ext[i] == ' '){
             newEntry->ext[i] = '\0';
         }
     }
 
-    // Encoding
+    // Deleted?
     if((*newEntry->name & 0xff) == 0xE5){
         newEntry->name[0] = '_';
     }
@@ -143,7 +141,7 @@ dirEntry *makeDirectory(uint8_t *fData) {
     }
 
     // If it's not a directory, add to dir list
-    else if (newEntry->directory == 0 && strcmp(newEntry->name, ".") != 0 && strcmp(newEntry->name, "..") != 0) {
+    if (newEntry->directory == 0 && strcmp(newEntry->name, ".") != 0 && strcmp(newEntry->name, "..") != 0) {
         // Add to directory list
         if(dir->head == NULL) {
             dir->head = dir->tail = newEntry;
@@ -176,18 +174,18 @@ void handleDirectory(dirEntry *entry, uint8_t *dataSec) {
         if(newEntry->directory == 1) {
             // Get first data sector
             uint8_t dataSec = (DATA_SEC_OFFSET + newEntry->firstLCluster - 2);
-            uint8_t *newSec = fData + (dataSec * SEC_SIZE); // <- the typecast may need to be removed later
+            uint8_t *newSec = fData + (dataSec * SEC_SIZE);
 
             // handle directory
             handleDirectory(newEntry, newSec);
         } else {
-            // handle file
+            // handle file ext
             strcat(newEntry->filePath, ".");
             strcat(newEntry->filePath, newEntry->ext);
 
             // Get data sector
             uint8_t dataSec = DATA_SEC_OFFSET + newEntry->firstLCluster - 2;
-            uint8_t *newSec = fData + (dataSec * SEC_SIZE); // <- the typecast may need to be removed later
+            uint8_t *newSec = fData + (dataSec * SEC_SIZE);
 
             makeData(newEntry, newSec);
         }
@@ -246,7 +244,7 @@ void makeData(dirEntry *entry, uint8_t *fData) {
     }
 }
 
-uint32_t cluster2FAT(uint16_t cluster) {
+uint32_t cluster2FAT(uint16_t cluster) { // GOOD
     // Get FAT entry
     uint32_t offset = 0x200 + (3 * cluster / 2);
 
@@ -256,7 +254,7 @@ uint32_t cluster2FAT(uint16_t cluster) {
     }
 
     // Otherwise, cluster is odd
-    return (*(fData + offset + 2) << 4) | (0xf0 & *(fData + offset + 1)) >> 4;
+    return (*(fData + offset + 2) << 4) | ((0xf0 & *(fData + offset + 1)) >> 4);
 }
 
 void addData(dirEntry *entry, dataEntry *data) {
@@ -264,7 +262,7 @@ void addData(dirEntry *entry, dataEntry *data) {
     dataList *list = entry->list;
 
     // Check if list is empty
-    if(list->head == NULL) {
+    if(!list->head) {
         list->head = list->tail = data;
         data->next = NULL;
     } else {
@@ -310,17 +308,20 @@ void writeOutput(char *outputDir) {
 
         // Open file
         outfile = fopen(outPath, "wb");
-        if(outfile == NULL) {
+        if(!outfile) {
             printf("Error: Could not open file %s\n", outPath);
             exit(EXIT_FAILURE);
         }
 
         // Check number of data sectors
-        if(entry->list == NULL) {
+        if(!entry->list) {
             // Only one data sector exists
             for(int j = 0; j < entry->size; j++) {
                 if(size < entry->size) {
-                    fprintf(outfile, "%c", entry->data->data[j]);
+                    // Use fwrite to write to file
+                    fwrite(&entry->data->data[j], sizeof(char), 1, outfile);
+
+                    //fprintf(outfile, "%c", entry->data->data[j]);
                     size++;
                 }
             }
@@ -332,7 +333,8 @@ void writeOutput(char *outputDir) {
             while(current) {
                 for(int j = 0; j < SEC_SIZE; j++) {
                     if(size < entry->size) {
-                        fprintf(outfile, "%c", current->data[j]);
+                        // Use fwrite to write to file
+                        fwrite(&current->data[j], sizeof(char), 1, outfile);
                         size++;
                     }
                 }
