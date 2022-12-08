@@ -23,7 +23,7 @@ uint8_t *extFileInfo(char *file){
         exit(0);
     }
 
-    uint8_t *mem = mmap(NULL, (SECTOR_SIZE * 2879), PROT_READ, MAP_PRIVATE, fd, 0);
+    uint8_t *mem = mmap(NULL, (SEC_SIZE * 2879), PROT_READ, MAP_PRIVATE, fd, 0);
 
     return mem;
 }
@@ -55,7 +55,7 @@ void getBootSec(uint8_t *file){
 void findFiles(uint8_t *file){
 
     //compute root directory 
-    uint8_t *rootDirectory = file + ROOT_DIR_OFFSET;
+    uint8_t *rootDirectory = file + ROOT_OFFSET;
 
     //we're gonna go until we run out of rootDirectory entries
     while(*rootDirectory != 0x00){
@@ -66,8 +66,8 @@ void findFiles(uint8_t *file){
         strcat(newDirectory->filePath, newDirectory->fileName);
         
         //the initial data sector
-        int sector = (DATA_SECTOR_OFFSET + newDirectory->firstCluster - 2);
-        uint8_t *dataSection = file + (sector * SECTOR_SIZE);
+        int sector = (DATA_OFFSET + newDirectory->firstCluster - 2);
+        uint8_t *dataSection = file + (sector * SEC_SIZE);
 
         //entry is a directory
         if(newDirectory->dir == 1){
@@ -107,13 +107,13 @@ void findSecs(fileNode *curEntry, uint8_t *file){
     int sector;
 
     fileDataNode *curDataSector = (fileDataNode *) malloc(sizeof(fileDataNode));
-    curDataSector->data = (char *) malloc(SECTOR_SIZE);
+    curDataSector->data = (char *) malloc(SEC_SIZE);
 
     uint32_t fatEntry = cluster2Fat(curEntry->firstCluster);
 
     // this is the only data sector for the entry
     if(fatEntry >= 0xff8 || fatEntry == 0x000){
-        memcpy(curDataSector->data, file, SECTOR_SIZE);
+        memcpy(curDataSector->data, file, SEC_SIZE);
         curEntry->dataSection = curDataSector;
 
         return;
@@ -121,7 +121,7 @@ void findSecs(fileNode *curEntry, uint8_t *file){
     // multiple data sectors, search through the FAT to get the next cluster that holds data
     else {
 
-        memcpy(curDataSector->data, file, SECTOR_SIZE);
+        memcpy(curDataSector->data, file, SEC_SIZE);
         
         curEntry->firstDataSector = (fileDataList *) malloc(sizeof(fileDataList));
         curEntry->firstDataSector->head = curEntry->firstDataSector->tail = NULL;
@@ -133,11 +133,11 @@ void findSecs(fileNode *curEntry, uint8_t *file){
 
         while(fatEntry <= 0xff8 && fatEntry != 0x000){
             fileDataNode *nextDataSector = (fileDataNode *) malloc(sizeof(fileDataNode));
-            nextDataSector->data = (char *) malloc(SECTOR_SIZE);
+            nextDataSector->data = (char *) malloc(SEC_SIZE);
             
-            sector = (DATA_SECTOR_OFFSET + fatEntry - 2);
-            dataSector = fileData + (sector * SECTOR_SIZE);
-            memcpy(nextDataSector->data, dataSector, SECTOR_SIZE);
+            sector = (DATA_OFFSET + fatEntry - 2);
+            dataSector = fileData + (sector * SEC_SIZE);
+            memcpy(nextDataSector->data, dataSector, SEC_SIZE);
 
             addToFileDataList(nextDataSector, curEntry);
 
@@ -173,8 +173,8 @@ void recursiveDir(fileNode *curEntry, uint8_t *curSubDirEntry){
         //sub dir in sub dir
         if(newEntry->dir == 1){
             //compute new sector and handle sub directory        
-            sector = (DATA_SECTOR_OFFSET + newEntry->firstCluster - 2);
-            newDataSector = fileData + (sector * SECTOR_SIZE);
+            sector = (DATA_OFFSET + newEntry->firstCluster - 2);
+            newDataSector = fileData + (sector * SEC_SIZE);
 
             recursiveDir(newEntry, newDataSector);
         }
@@ -185,8 +185,8 @@ void recursiveDir(fileNode *curEntry, uint8_t *curSubDirEntry){
             strcat(newEntry->filePath, newEntry->ext);
 
             //compute new data sector and get the data
-            sector = (DATA_SECTOR_OFFSET + newEntry->firstCluster - 2);
-            newDataSector = fileData + (sector * SECTOR_SIZE);
+            sector = (DATA_OFFSET + newEntry->firstCluster - 2);
+            newDataSector = fileData + (sector * SEC_SIZE);
             findSecs(newEntry, newDataSector);
         }
 
@@ -202,7 +202,7 @@ void recursiveDir(fileNode *curEntry, uint8_t *curSubDirEntry){
 
 void recoverData(char *file){
 
-    fileNode *curEntry = directoryList->head;
+    fileNode *curEntry = fList->head;
     FILE *out;    
     char *fullPath = (char *) malloc(50);
     int count = 0;
@@ -240,7 +240,7 @@ void recoverData(char *file){
                 
             while(dat){
                 
-                for(int k = 0; k < SECTOR_SIZE; k++){
+                for(int k = 0; k < SEC_SIZE; k++){
                     // don't print the extra allocated bytes
                     if(totalSize < curEntry->size){                       
                         fprintf(out, "%c", dat->data[k]);
@@ -324,13 +324,13 @@ void addToFileDataList(fileDataNode *newEntry, fileNode *curDirectory){
 
 void addToFileList(fileNode *newEntry){
     
-    if(!directoryList->head){
-        directoryList->head = directoryList->tail = newEntry;
+    if(!fList->head){
+        fList->head = fList->tail = newEntry;
         newEntry->next = NULL;
     }
     else {
-        directoryList->tail->next = newEntry;
-        directoryList->tail = newEntry;
+        fList->tail->next = newEntry;
+        fList->tail = newEntry;
         newEntry->next = NULL;
     }
 
@@ -361,7 +361,7 @@ int checkEntry(char *fileName){
 
 void printFiles(){
 
-    fileNode *curEntry = directoryList->head;
+    fileNode *curEntry = fList->head;
 
     // go through the directory list and print info about the file
     while(curEntry){
@@ -452,9 +452,9 @@ fileNode *allocDirectory(){
     newEntry->dir = 0;
 
     //max length for filePath will be 30 chars
-    newEntry->filePath = (char *) malloc(MAX_FILE_PATH_SIZE);
+    newEntry->filePath = (char *) malloc(FILEPATH_SIZE);
     newEntry->dataSection = (fileDataNode *) malloc(sizeof(fileDataNode));
-    newEntry->dataSection->data = (char *) malloc(SECTOR_SIZE);
+    newEntry->dataSection->data = (char *) malloc(SEC_SIZE);
     newEntry->next = NULL; 
 
     return newEntry;
@@ -467,7 +467,7 @@ fileNode *allocDirectory(){
   
 void printFinalValues(){
 
-    fileNode *cur = directoryList->head;
+    fileNode *cur = fList->head;
 
     while(cur){
         printf("File: %s.%s Full path: %s\n", cur->fileName, cur->ext, cur->filePath);

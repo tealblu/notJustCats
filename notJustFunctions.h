@@ -17,15 +17,20 @@
 #include <stdint.h>
 #include <string.h>
 
-#define ROOT_DIR_OFFSET 0x2600
+// offsets
+#define ROOT_OFFSET 0x2600
 #define FAT_OFFSET 0x203
-#define SECTOR_SIZE 512
-#define DIRECTORY_SIZE 32
-#define ATTR_MASK 0xf0
-#define MAX_FILE_PATH_SIZE 30
-#define DATA_SECTOR_OFFSET 33
+#define DATA_OFFSET 33
 
-// boot sec info
+// sizes
+#define FILEPATH_SIZE 30
+#define SEC_SIZE 512
+#define DIR_SIZE 32
+
+// masks
+#define ATTR_MASK 0xf0
+
+// structs
 struct bootSec {
     size_t numFat;
     size_t rdCount;
@@ -33,7 +38,6 @@ struct bootSec {
     size_t secPerFat;
 };
 
-// file entry
 typedef struct fileNode {
     char *fileName;
     char *ext;
@@ -52,20 +56,16 @@ typedef struct fileNode {
 
 } fileNode;
 
-// linked list to hold files
-typedef struct fileList { // directory
+typedef struct fileList {
     struct fileNode *head;
     struct fileNode *tail;
 } fileList;
 
-// individual data sector
 typedef struct fileDataNode {
     char *data;
     struct fileDataNode *next;
 } fileDataNode;
 
-// list of data sectors for files with more than one sector's worth
-// of data
 typedef struct fileDataList {
     int count;
     struct fileDataNode *head;
@@ -74,34 +74,26 @@ typedef struct fileDataList {
 
 // globals
 struct bootSec *boot;
-fileList *directoryList;
+fileList *fList;
 uint8_t *fileData;
 
-// I/O functions
-uint8_t *extFileInfo(char *file);
+// core functions
+void getBootSec(uint8_t *file);
+void recursiveDir(fileNode *curEntry, uint8_t *curSubDirEntry); 
+void findSecs(fileNode *curEntry, uint8_t *file);
+uint32_t cluster2Fat(uint16_t clustNum);
+void findFiles(uint8_t *file);
 void recoverData(char *file);
+
+// file functions
+uint8_t *extFileInfo(char *file);
 void printFiles();
 
-
-// control functions
-void getBootSec(uint8_t *file);
-void findFiles(uint8_t *file);
-void recursiveDir(fileNode *curEntry, uint8_t *curSubDirEntry);
-
-
-// helper functions to create a directory entry 
+// allocation functions
 fileNode *makeDir(uint8_t *directoryInfo);
 fileNode *allocDirectory(); // <- move into makeDir
 
-
-// dir list function
+// list functions
 void addToFileList(fileNode *newEntry);
-
-
-// handles data sectors
-void findSecs(fileNode *curEntry, uint8_t *file);
 void addToFileDataList(fileDataNode *newEntry, fileNode *curDirectory);
-
-// other misc helper functions
-uint32_t cluster2Fat(uint16_t clustNum);
 int checkEntry(char *fileName); // <- move into cluster2Fat

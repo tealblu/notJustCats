@@ -24,7 +24,7 @@ int main(int argc, char *argv[]){
     char *in = argv[1];
     char *out = argv[2];
     
-    directoryList = (fileList *) malloc(sizeof(fileList));
+    fList = (fileList *) malloc(sizeof(fileList));
     
     fileData = extFileInfo(in);
     getBootSec(fileData);
